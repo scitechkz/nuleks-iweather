@@ -1,0 +1,26 @@
+{
+  "name": "inclement-weather-analysis",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "extract": "python3 -I scripts/extract_template.py public/INCLEMENT_WEATHER_ANALYSIS_TEMPLATE.xlsx src/template/workbook.json"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1",
+    "papaparse": "^5.4.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}

@@ -5,7 +5,8 @@ import CsvUpload, { useCsvPicker } from './components/CsvUpload.jsx';
 import ClimateCharts from './pages/ClimateCharts.jsx';
 import ModifyVariables from './pages/ModifyVariables.jsx';
 import WeatherImpact from './pages/WeatherImpact.jsx';
-import SheetPage from './pages/SheetPage.jsx';
+import ProjectCalendar from './pages/ProjectCalendar.jsx';
+import CriticalSiteSummary from './pages/CriticalSiteSummary.jsx';
 import SheetGrid from './components/SheetGrid.jsx';
 
 const NAV = [
@@ -96,12 +97,10 @@ export default function App() {
           : <UploadFirst store={store} what="Weather impact results" />)}
         {tab === 'critical' && !store.hasData && <UploadFirst store={store} what="The critical site summary and its delay allowances" />}
         {tab === 'critical' && store.hasData && (
-          <SheetPage store={store} version={version} sheet={S.CSWS} title="Critical Site Works Summary" hiddenToggle shapes
-            intro="Enter the project title, start dates and Rain Exposure Ratings — delay allowances and working days recalculate automatically from the weather impact results." />
+          <CriticalSiteSummary store={store} />
         )}
         {tab === 'calendar' && (
-          <SheetPage store={store} version={version} sheet={S.CAL} title="Project Site Calendar"
-            intro="Enter non-work days and work hours for the project. Section B sets the working days per month and the work-hours ratio used throughout the analysis." />
+          <ProjectCalendar store={store} />
         )}
       </main>
     </div>

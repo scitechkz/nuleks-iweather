@@ -1,7 +1,7 @@
 // Builds a live Workbook from the template + user state (uploaded BOM csv, categories, edits).
 import template from '../template/workbook.json';
 import { Workbook } from '../engine/workbook.js';
-import { addr, colToLetters, parseRange, rangeToString } from '../engine/address.js';
+import { addr, colToLetters, lettersToCol, parseRange, rangeToString } from '../engine/address.js';
 
 export const S = {
   BOM: 'BOM csv data',
@@ -326,7 +326,45 @@ export function isLocked(wb, sheet, a) {
   return wb.getCell(sheet, a)?.f !== undefined;
 }
 export function isAllowedInput(wb, sheet, a, raw) {
-  return !isLocked(wb, sheet, a) && !String(raw ?? '').trim().startsWith('=');
+  if (isLocked(wb, sheet, a) || String(raw ?? '').trim().startsWith('=')) return false;
+  return inputError(sheet, a, raw) === null;
+}
+
+// Validation message for a user edit, or null when the value is acceptable.
+export function inputError(sheet, a, raw) {
+  if (isRatingCell(sheet, a)) return ratingError(raw);
+  if (isCalendarDaysCell(sheet, a)) return calendarDaysError(raw);
+  return null;
+}
+
+// Calendar Days per month (row 4 of the Project Site Calendar, Jan..Dec in I..T): whole numbers 1-31.
+export const CAL_DAYS_MAX = 31;
+export function isCalendarDaysCell(sheet, a) {
+  return sheet === S.CAL && /^[I-T]4$/.test(a);
+}
+export function calendarDaysError(raw) {
+  const t = String(raw ?? '').trim();
+  const n = Number(t.replace(/,/g, ''));
+  if (t !== '' && Number.isInteger(n) && n >= 1 && n <= CAL_DAYS_MAX) return null;
+  return `Calendar Days must be a whole number from 1 to ${CAL_DAYS_MAX}. “${t}” was not saved.`;
+}
+
+// Rain Exposure Ratings (row 11 of the Critical Site Works Summary, month columns I onwards):
+// whole numbers 1-5, or blank for no rating.
+export const RATING_MIN = 1;
+export const RATING_MAX = 5;
+export function isRatingCell(sheet, a) {
+  const m = /^([A-Z]+)11$/.exec(a);
+  if (sheet !== S.CSWS || !m) return false;
+  const c = lettersToCol(m[1]);
+  return c >= 9 && c <= 104; // I..CZ
+}
+export function ratingError(raw) {
+  const t = String(raw ?? '').trim();
+  if (t === '') return null;
+  const n = Number(t);
+  if (Number.isInteger(n) && n >= RATING_MIN && n <= RATING_MAX) return null;
+  return `Rain Exposure Rating must be a whole number from ${RATING_MIN} to ${RATING_MAX} (or blank for none). “${t}” was not saved.`;
 }
 
 // Template content that must not appear in the app.

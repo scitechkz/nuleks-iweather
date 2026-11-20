@@ -13,10 +13,14 @@
   --warn-line: #f0c75e;
   --err-bg: #fdecea;
   --grid: #e2e2e2;
-  --chart-ink: #595959;
-  --chart-grid: #d9d9d9;
-  --chart-axis: #bfbfbf;
-  --chart-cursor: rgba(0, 0, 0, 0.05);
+  --chart-ink: #52514e;
+  --chart-muted: #6f6e69;
+  --chart-grid: #ebeae5;
+  --chart-axis: #c3c2b7;
+  --chart-cursor: rgba(42, 120, 214, 0.07);
+  /* chart series (validated: dataviz palette, light steps) */
+  --series-1: #2a78d6; --series-2: #eb6834;
+  --series-hot: #eb6834; --series-cold: #2a78d6; --series-rain: #1baf7a;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -24,7 +28,8 @@
     --bg: #12171d; --surface: #1b222a; --ink: #e6ebf0; --ink-2: #b9c3cd; --muted: #8b97a3; --line: #2d3741;
     --accent: #4f9be0; --accent-ink: #0b1220; --accent-soft: #1d3247; --danger: #ff8a7a;
     --warn-bg: #3a2f12; --warn-line: #7a6223; --err-bg: #3d1d1a;
-    --chart-ink: #b9c3cd; --chart-grid: #2f3943; --chart-axis: #4a5866; --chart-cursor: rgba(255, 255, 255, 0.06);
+    --chart-ink: #c3c2b7; --chart-muted: #98a2ad; --chart-grid: #29323b; --chart-axis: #3e4955; --chart-cursor: rgba(57, 135, 229, 0.10);
+    --series-1: #3987e5; --series-2: #d95926; --series-hot: #d95926; --series-cold: #3987e5; --series-rain: #199e70;
     color-scheme: dark;
   }
 }
@@ -32,7 +37,8 @@
   --bg: #12171d; --surface: #1b222a; --ink: #e6ebf0; --ink-2: #b9c3cd; --muted: #8b97a3; --line: #2d3741;
   --accent: #4f9be0; --accent-ink: #0b1220; --accent-soft: #1d3247; --danger: #ff8a7a;
   --warn-bg: #3a2f12; --warn-line: #7a6223; --err-bg: #3d1d1a;
-  --chart-ink: #b9c3cd; --chart-grid: #2f3943; --chart-axis: #4a5866; --chart-cursor: rgba(255, 255, 255, 0.06);
+  --chart-ink: #c3c2b7; --chart-muted: #98a2ad; --chart-grid: #29323b; --chart-axis: #3e4955; --chart-cursor: rgba(57, 135, 229, 0.10);
+    --series-1: #3987e5; --series-2: #d95926; --series-hot: #d95926; --series-cold: #3987e5; --series-rain: #199e70;
   color-scheme: dark;
 }
 
@@ -101,9 +107,27 @@ main { padding: 20px; }
 
 /* charts */
 .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(520px, 100%), 1fr)); gap: 16px; }
-.chart-card { padding: 16px 16px 10px; }
-.chart-title { text-align: center; font-weight: 500; font-size: 17px; color: var(--chart-ink); margin-bottom: 6px; }
-.chart-foot { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-top: 4px; }
+.chart-card { padding: 18px 18px 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
+.chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.chart-title { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: -0.005em; }
+.chart-sub { margin: 2px 0 0; font-size: 12px; color: var(--chart-muted); }
+.chart-stat { text-align: right; flex-shrink: 0; }
+.chart-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--chart-muted); }
+.chart-stat-value { font-size: 22px; font-weight: 650; color: var(--ink); line-height: 1.2; }
+.chart-stat-note { font-size: 12px; color: var(--chart-ink); }
+.chart-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+.viz-unit { font-size: 0.7em; font-weight: 500; color: var(--chart-muted); }
+.viz-label { font-size: 12px; font-weight: 600; fill: var(--chart-ink); font-variant-numeric: tabular-nums; }
+.viz-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 16px; font-size: 12px; color: var(--chart-ink); }
+.viz-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.viz-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.viz-swatch.line { width: 14px; height: 3px; border-radius: 2px; }
+.viz-tip { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 150px; font-size: 12px; color: var(--ink); box-shadow: 0 6px 16px rgba(16, 24, 40, 0.12); }
+.viz-tip-head { font-weight: 600; margin-bottom: 4px; color: var(--chart-ink); }
+.viz-tip-row { display: flex; align-items: center; gap: 8px; }
+.viz-tip-name { flex: 1; color: var(--chart-ink); }
+.viz-tip-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .chart-head { flex-direction: column; } .chart-stat { text-align: left; } }
 
 /* tables */
 .table-scroll { overflow-x: auto; }
@@ -198,3 +222,107 @@ textarea.field { resize: vertical; }
 .empty { max-width: 640px; margin: 40px auto; padding: 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .empty p { margin: 0; }
 .empty-icon { font-size: 40px; color: var(--accent); }
+.xl th.xl-rowlabel { position: sticky; left: 0; z-index: 1; padding: 0 6px; font-weight: 600; }
+.xl select.xl-select { width: 100%; height: 100%; border: 0; background: transparent; font: inherit; text-align: center; cursor: pointer; padding: 0; }
+
+/* weather analysis impact table */
+.impact-card { padding: 18px 18px 12px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
+.impact-head h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.impact-head p { margin: 2px 0 12px; font-size: 12px; color: var(--chart-muted); }
+.impact-foot { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--chart-muted); }
+.impact-table { border-collapse: collapse; width: 100%; min-width: 980px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.impact-table th, .impact-table td { padding: 7px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.impact-table thead th { font-size: 12px; font-weight: 600; color: var(--chart-muted); border-bottom: 1px solid var(--chart-axis); }
+.impact-table th:first-child { text-align: left; position: sticky; left: 0; z-index: 1; background: var(--surface); min-width: 200px; }
+.impact-table tbody th { font-weight: 500; color: var(--ink); }
+.impact-table td { color: var(--ink); }
+.impact-table td.is-zero { color: var(--chart-muted); }
+.impact-table .impact-total { font-weight: 700; border-left: 1px solid var(--line); }
+.impact-table td.impact-total.is-zero { font-weight: 400; }
+.impact-table .impact-share { color: var(--chart-ink); }
+.impact-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+.impact-rating { display: inline-block; min-width: 18px; margin-right: 4px; font-weight: 700; }
+.impact-table tr.impact-group th { background: var(--bg); color: var(--chart-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding-top: 8px; }
+.impact-table tbody tr:not(.impact-group):hover th, .impact-table tbody tr:not(.impact-group):hover td { box-shadow: inset 0 -1px 0 var(--chart-axis); }
+/* project calendar: editable days in the impact-table style */
+.cal-table { min-width: 860px; }
+.cal-table td { padding: 4px; }
+.cal-input { width: 100%; min-width: 44px; padding: 5px 6px; font: inherit; text-align: right; font-variant-numeric: tabular-nums;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; -moz-appearance: textfield; }
+.cal-input::-webkit-outer-spin-button, .cal-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cal-input:hover { border-color: var(--chart-axis); }
+.cal-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.cal-table td.is-edited .cal-input { background: var(--accent-soft); border-color: var(--accent); }
+/* critical site summary: period/rating rows in the table style */
+.csws-table { min-width: 0; width: auto; }
+.csws-table th:first-child { min-width: 190px; }
+.csws-table thead th:not(:first-child) { text-align: center; min-width: 64px; }
+.csws-table td { min-width: 64px; }
+.csws-select { text-align: center; text-align-last: center; cursor: pointer; }
+/* weather impact table: summary columns first, compact width */
+.impact-compact { width: auto; min-width: 0; font-size: 12.5px; }
+.impact-compact th, .impact-compact td { padding: 5px 7px; }
+.impact-compact th:first-child { min-width: 0; padding-right: 14px; }
+.impact-compact .impact-total { border-left: 0; }
+.impact-compact .impact-share { border-right: 1px solid var(--line); padding-right: 10px; }
+.impact-fit { width: fit-content; max-width: 100%; }
+.impact-fit .impact-head p { max-width: 720px; }
+/* project calendar table: compact width */
+.cal-compact { width: auto; min-width: 0; font-size: 12.5px; }
+.cal-compact th, .cal-compact td { padding: 5px 4px; }
+.cal-compact th:first-child { min-width: 0; padding-right: 14px; }
+.cal-compact thead th:not(:first-child) { text-align: center; }
+.cal-compact .cal-input { width: 46px; min-width: 0; padding: 4px 6px; }
+/* critical site summary table: compact cells */
+.csws-compact { font-size: 12.5px; }
+.csws-compact th, .csws-compact td { padding: 5px 3px; }
+.csws-compact th:first-child { min-width: 0; padding-right: 14px; }
+.csws-compact thead th:not(:first-child), .csws-compact td { min-width: 0; }
+.csws-compact .csws-select { width: 54px; padding: 3px 2px; }
+.csws-compact thead th:not(:first-child) { font-size: 11px; }
+.csws-compact td { padding: 5px 2px; }
+.csws-compact .csws-select { width: 46px; padding: 3px 1px; font-size: 12px; }
+/* modify variables: sections in the table/card style */
+.mv-panel { margin-bottom: 16px; }
+.mv-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.mv-panel-head .impact-head p { max-width: 760px; }
+.mv-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 12px; }
+.mv-cat { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.mv-cat-head { display: flex; align-items: center; gap: 8px; }
+.mv-cat-badge { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--series-1); color: #fff; font-size: 12px; font-weight: 700; }
+.mv-cat-title { font-size: 13px; font-weight: 600; color: var(--ink); flex: 1; }
+.mv-lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; color: var(--chart-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.mv-lbl .mv-text { text-align: left; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 400; }
+textarea.mv-text { resize: vertical; min-height: 44px; }
+.mv-table { width: 100%; }
+.mv-table th, .mv-table td { padding: 4px 5px; }
+.cal-input.mv-num { width: 72px; }
+.mv-hint { font-size: 11.5px; font-weight: 400; color: var(--chart-muted); }
+.mv-left { text-align: left !important; }
+.mv-inline { display: inline-flex; align-items: center; gap: 8px; }
+.impact-table td .cal-input { margin-left: auto; display: block; }
+.impact-table td .mv-inline .cal-input { display: inline-block; }
+/* modify variables: compact category cards */
+.mv-cat-grid { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 10px; }
+.mv-cat { padding: 9px 10px; gap: 6px; }
+.mv-cat-badge { width: 18px; height: 18px; font-size: 11px; border-radius: 5px; }
+.mv-cat-title { font-size: 12.5px; }
+.mv-cat .mv-lbl { font-size: 10.5px; gap: 3px; }
+.mv-cat .mv-text { font-size: 12px; padding: 3px 6px; }
+.mv-cat textarea.mv-text { height: 36px; min-height: 36px; line-height: 1.3; }
+.mv-cat .mv-table { font-size: 12px; }
+.mv-cat .mv-table th, .mv-cat .mv-table td { padding: 2px 3px; }
+.mv-cat .mv-table thead th { font-size: 11px; }
+.mv-cat .cal-input.mv-num { width: 54px; padding: 2px 5px; font-size: 12px; }
+/* modify variables: compact section tables (rain summary, hot & cold, monthly allowances, thresholds) */
+.mv-panel { padding: 14px 14px 10px; margin-bottom: 12px; }
+.mv-panel .impact-head p { margin-bottom: 8px; }
+.mv-panel > .table-scroll > .impact-table, .mv-panel > .impact-table { font-size: 12px; }
+.mv-panel > .table-scroll > .impact-table th, .mv-panel > .table-scroll > .impact-table td,
+.mv-panel > .impact-table th, .mv-panel > .impact-table td { padding: 3px 5px; }
+.mv-panel > .table-scroll > .impact-table thead th, .mv-panel > .impact-table thead th { font-size: 11px; }
+.mv-panel > .table-scroll > .impact-table th:first-child, .mv-panel > .impact-table th:first-child { padding-right: 12px; }
+.mv-panel > .impact-table .cal-input.mv-num { width: 54px; padding: 2px 5px; font-size: 12px; }
+.mv-panel > .table-scroll > .cal-compact .cal-input { width: 40px; padding: 2px 4px; font-size: 12px; }
+.mv-panel .mv-inline { gap: 5px; }
+.mv-panel .mv-hint { font-size: 11px; }

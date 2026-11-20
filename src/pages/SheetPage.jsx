@@ -1,11 +1,20 @@
 import { useState } from 'react';
 import SheetGrid from '../components/SheetGrid.jsx';
+import { inputError } from '../model/build.js';
 
-// Full, editable mirror of a workbook sheet.
-export default function SheetPage({ store, version, sheet, title, intro, hiddenToggle, shapes }) {
+// Editable mirror of a workbook sheet. Optional view props restrict it to part of the sheet:
+// visibleRows, cols, editable (bool | addr=>bool), rowLabels, editableAddr (addr=>bool: which edits "Reset changes" counts and clears).
+export default function SheetPage({
+  store, version, sheet, title, intro, hiddenToggle, shapes, visibleRows, cols, editable = true, rowLabels, editableAddr, plain, options,
+}) {
   const { wb } = store;
   const [showHidden, setShowHidden] = useState(false);
-  const edited = Object.keys(store.state.overrides).filter((k) => k.startsWith(`${sheet}|`)).length;
+  const [error, setError] = useState(null);
+  const editedAddrs = Object.keys(store.state.overrides)
+    .filter((k) => k.startsWith(`${sheet}|`))
+    .map((k) => k.slice(sheet.length + 1))
+    .filter((a) => !editableAddr || editableAddr(a));
+  const edited = editedAddrs.length;
   return (
     <div className="page">
       <header className="page-head row">
@@ -20,15 +29,22 @@ export default function SheetPage({ store, version, sheet, title, intro, hiddenT
             </button>
           )}
           <button type="button" className="btn ghost" disabled={!edited}
-            onClick={() => { if (window.confirm(`Discard ${edited} change(s) on this page?`)) store.resetSheet(sheet); }}>
+            onClick={() => { if (window.confirm(`Discard ${edited} change(s) on this page?`)) store.resetSheet(sheet, editableAddr ? editedAddrs : undefined); }}>
             Reset changes{edited ? ` (${edited})` : ''}
           </button>
         </div>
       </header>
       <p className="muted small hint">Click an input cell and type to change it (Enter to confirm, Esc to cancel). Calculated values are locked.</p>
+      {error && <div className="alert error" role="alert">{error}</div>}
       <div className="card sheet-card">
-        <SheetGrid wb={wb} sheet={sheet} version={version} editable showHidden={showHidden} shapes={shapes}
-          onEdit={(a, raw) => store.setOverride(sheet, a, raw)} />
+        <SheetGrid wb={wb} sheet={sheet} version={version} editable={editable} showHidden={showHidden} shapes={shapes}
+          visibleRows={visibleRows} cols={cols} rowLabels={rowLabels} plain={plain} options={options}
+          onEdit={(a, raw) => {
+            const msg = inputError(sheet, a, raw);
+            if (msg) { setError(msg); return; }
+            setError(null);
+            store.setOverride(sheet, a, raw);
+          }} />
       </div>
     </div>
   );

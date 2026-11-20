@@ -14,6 +14,15 @@ const BORDER = {
   thick: '3px solid', double: '3px double',
 };
 
+// Unstyled cell: plain font, light gridlines, default alignment (numbers right, text left).
+function plainCss(value) {
+  return {
+    fontFamily: 'Calibri, Carlito, Arial, sans-serif', fontSize: '11pt',
+    border: '1px solid var(--grid)', padding: '0 4px', verticalAlign: 'middle', whiteSpace: 'pre',
+    textAlign: typeof value === 'number' ? 'right' : 'left',
+  };
+}
+
 function cssFor(style, cf, value, showGrid) {
   const css = {};
   if (!style) return css;
@@ -57,10 +66,13 @@ function cssFor(style, cf, value, showGrid) {
  *  editable?: bool | (addr)=>bool, onEdit(addr, raw)
  *  showHidden?: bool  - reveal rows/cols hidden in the workbook
  *  headers?: bool     - show column letters / row numbers (off by default)
+ *  plain?: bool       - ignore template styling (fills, fonts, borders, conditional formats); keeps number/date formats
+ *  options?: (addr)=>[{value, label}] | null - editable cells with a list render as a dropdown
+ *  rowLabels?: {labels: {[row]: text}, width?: px, styleOf?: addr} - extra label column on the left
  */
 export default function SheetGrid({
   wb, sheet, version, rows, cols, visibleRows, editable = false, onEdit, showHidden = false,
-  headers = false, shapes = false, zoom,
+  headers = false, shapes = false, zoom, rowLabels, plain = false, options,
 }) {
   const s = wb.sheet(sheet);
   const r1 = rows?.[0] ?? 1;
@@ -82,7 +94,9 @@ export default function SheetGrid({
   for (let c = c1; c <= c2; c++) {
     const d = s.cols[c];
     if (d?.hidden && !showHidden) continue;
-    colList.push({ c, w: colPx(d?.w ?? s.defaultColWidth) });
+    const w = colPx(d?.w ?? s.defaultColWidth);
+    // plain cells use a normal-size font, so narrow template columns need room for e.g. "Sep-18"
+    colList.push({ c, w: plain ? Math.max(w, 56) : w });
   }
   const colSet = new Set(colList.map((x) => x.c));
   const hiddenRow = new Set(rowList.filter((x) => x.hidden).map((x) => x.r));
@@ -143,7 +157,13 @@ export default function SheetGrid({
 
   const showZeros = s.showZeros;
   const showGrid = false; // no spreadsheet gridlines - only the designed borders
-  const totalWidth = colList.reduce((t, x) => t + x.w, 0) + (headers ? 40 : 0);
+  const labelW = rowLabels ? (rowLabels.width ?? 160) : 0;
+  const labelCss = rowLabels
+    ? { ...(plain ? plainCss('') : cssFor(wb.styles[wb.getCell(sheet, rowLabels.styleOf ?? 'A1')?.s] || wb.styles[0], null, '', false)), textAlign: 'left', verticalAlign: 'middle' }
+    : null;
+  // sticky label column needs an opaque background so scrolled cells don't show through
+  if (labelCss && !labelCss.background) labelCss.background = '#ffffff';
+  const totalWidth = colList.reduce((t, x) => t + x.w, 0) + (headers ? 40 : 0) + labelW;
 
   // pixel offsets for shapes
   const shapeEls = [];
@@ -201,12 +221,14 @@ export default function SheetGrid({
             <table className="xl" style={{ width: totalWidth }}>
               <colgroup>
                 {headers && <col style={{ width: 40 }} />}
+                {rowLabels && <col style={{ width: labelW }} />}
                 {colList.map(({ c, w }) => <col key={c} style={{ width: w }} />)}
               </colgroup>
               {headers && (
                 <thead>
                   <tr style={{ height: 20 }}>
                     <th className="xl-corner" />
+                    {rowLabels && <th className="xl-corner" />}
                     {colList.map(({ c }) => <th key={c} className="xl-colhead">{colToLetters(c)}</th>)}
                   </tr>
                 </thead>
@@ -217,6 +239,7 @@ export default function SheetGrid({
                   return (
                     <tr key={r} style={{ height: h }}>
                       {headers && <th className="xl-rowhead">{r}</th>}
+                      {rowLabels && <th scope="row" className="xl-rowlabel" style={labelCss}>{rowLabels.labels[r] ?? ''}</th>}
                       {colList.map(({ c }, ci) => {
                         const a = addr(r, c);
                         if (covered.has(a)) return null;
@@ -226,8 +249,8 @@ export default function SheetGrid({
                         const st = cell ? wb.styles[cell.s] : null;
                         const v = cell ? wb.getValue(sheet, src) : null;
                         const text = st ? formatValue(v, st.numFmt, { showZeros }) : formatValue(v, 'General', { showZeros });
-                        const css = cssFor(st || wb.styles[0], cf.get(src), v, showGrid);
-                        if (!st && showGrid) {
+                        const css = plain ? plainCss(v) : cssFor(st || wb.styles[0], cf.get(src), v, showGrid);
+                        if (!plain && !st && showGrid) {
                           css.borderRight = '1px solid var(--grid)';
                           css.borderBottom = '1px solid var(--grid)';
                         }
@@ -241,6 +264,7 @@ export default function SheetGrid({
                         const isSel = sel === a;
                         const isEdit = editing?.a === a;
                         const ed = canEdit(src);
+                        const opts = ed && options ? options(src) : null;
                         return (
                           <td
                             key={c}
@@ -251,16 +275,26 @@ export default function SheetGrid({
                             className={`${isSel ? 'xl-sel' : ''} ${ed ? 'xl-editable' : ''}`}
                             title={cell?.note || undefined}
                             onClick={() => setSel(src)}
-                            onDoubleClick={() => ed && setEditing({ a: src, text: rawOf(src) })}
+                            onDoubleClick={() => ed && !opts && setEditing({ a: src, text: rawOf(src) })}
                             onKeyDown={(e) => {
-                              if (!ed || isEdit) return;
+                              if (!ed || isEdit || opts) return;
                               if (e.key === 'Enter' || e.key === 'F2') setEditing({ a: src, text: rawOf(src) });
                               else if (e.key === 'Delete' || e.key === 'Backspace') onEdit?.(src, '');
                               else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) setEditing({ a: src, text: e.key });
                             }}
-                            tabIndex={ed ? 0 : -1}
+                            tabIndex={ed && !opts ? 0 : -1}
                           >
-                            {isEdit ? (
+                            {opts ? (
+                              <select
+                                className="xl-select"
+                                aria-label={`Value for ${src}`}
+                                value={rawOf(src)}
+                                onChange={(e) => onEdit?.(src, e.target.value)}
+                              >
+                                {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                {!opts.some((o) => o.value === rawOf(src)) && <option value={rawOf(src)}>{rawOf(src)}</option>}
+                              </select>
+                            ) : isEdit ? (
                               <input
                                 ref={inputRef}
                                 className="xl-input"

@@ -283,6 +283,10 @@ textarea.field { resize: vertical; }
 .csws-compact td { padding: 5px 2px; }
 .csws-compact .csws-select { width: 46px; padding: 3px 1px; font-size: 12px; }
 .csws-row-actions { padding: 10px 0 0; }
+.csws-activities td { text-align: center; padding: 5px 6px; font-variant-numeric: tabular-nums; }
+.csws-activities .csws-sum { white-space: nowrap; }
+.csws-activities .csws-total { font-weight: 700; border-right: 1px solid var(--line); }
+.csws-activities .csws-active { background: color-mix(in srgb, var(--series-1) 10%, transparent); }
 /* modify variables: sections in the table/card style */
 .mv-panel { margin-bottom: 16px; }
 .mv-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }

@@ -33,6 +33,45 @@ function readRow(wb, overrides, row, periods) {
   });
 }
 
+// Activity rows 12-22 (labels in column A; the rows between them are spacers): read-only values
+// shown with the workbook's own number formats.
+const ACTIVITY_FIRST_ROW = 12;
+const ACTIVITY_LAST_ROW = 22;
+const ACTIVITY_COLS = [
+  { col: 3, label: 'W.D' },
+  { col: 4, label: 'Net Start' },
+  { col: 5, label: 'Net Finish' },
+  { col: 6, label: 'Gross %' },
+  { col: 7, label: 'Net %' },
+];
+
+function show(wb, a) {
+  const v = wb.getValue(S.CSWS, a);
+  if (v === null || v === undefined || v === '') return '';
+  return formatValue(v, wb.styles[wb.getCell(S.CSWS, a)?.s]?.numFmt || 'General');
+}
+
+function readActivities(wb, periods) {
+  const out = [];
+  for (let r = ACTIVITY_FIRST_ROW; r <= ACTIVITY_LAST_ROW; r++) {
+    const label = String(wb.getValue(S.CSWS, addr(r, 1)) ?? '').trim();
+    if (!label) continue;
+    // Total impact days: the sum of the period values (I..CZ), as in the Gross % formula's numerator.
+    const total = periods.reduce((sum, { c }) => {
+      const v = wb.getValue(S.CSWS, addr(r, c));
+      return typeof v === 'number' ? sum + v : sum;
+    }, 0);
+    out.push({
+      row: r,
+      label,
+      summary: ACTIVITY_COLS.map(({ col }) => show(wb, addr(r, col))),
+      total: formatValue(total, '0.0'),
+      periods: periods.map(({ c }) => show(wb, addr(r, c))),
+    });
+  }
+  return out;
+}
+
 export default function CriticalSiteSummary({ store }) {
   const { wb, state } = store;
   const [error, setError] = useState(null);
@@ -43,6 +82,7 @@ export default function CriticalSiteSummary({ store }) {
     ...Array.from({ length: extra }, (_, k) => ({ row: extraRatingRow(k), label: `Rain Exposure Rating ${k + 2}` })),
   ].map((r) => ({ ...r, cells: readRow(wb, state.overrides, r.row, periods) }));
   const edited = rows.flatMap((r) => r.cells.filter((p) => p.edited).map((p) => p.a));
+  const activities = readActivities(wb, periods);
 
   const commit = (a, raw) => {
     const msg = inputError(S.CSWS, a, raw);
@@ -125,6 +165,34 @@ export default function CriticalSiteSummary({ store }) {
           )}
         </div>
         <p className="impact-foot">Edited periods are highlighted.</p>
+      </section>
+      <section className="card impact-card impact-fit">
+        <header className="impact-head">
+          <h3>Critical activities</h3>
+          <p>Working days and weather impact for each activity, the total impact days, and the working days lost in each period the activity is on site. These are calculated and can't be edited here.</p>
+        </header>
+        <div className="table-scroll">
+          <table className="impact-table cal-table csws-table csws-compact csws-activities">
+            <thead>
+              <tr>
+                <th scope="col">Activity</th>
+                {ACTIVITY_COLS.map((h) => <th key={h.col} scope="col" className="csws-sum">{h.label}</th>)}
+                <th scope="col" className="csws-sum csws-total" title="Total impact days for the activity">Total</th>
+                {periods.map((p) => <th key={p.c} scope="col">{p.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {activities.map((act) => (
+                <tr key={act.row}>
+                  <th scope="row">{act.label}</th>
+                  {act.summary.map((v, j) => <td key={ACTIVITY_COLS[j].col} className="csws-sum">{v}</td>)}
+                  <td className="csws-sum csws-total">{act.total}</td>
+                  {act.periods.map((v, j) => <td key={periods[j].c} className={v ? 'csws-active' : undefined}>{v}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

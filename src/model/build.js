@@ -353,11 +353,54 @@ export function calendarDaysError(raw) {
 // whole numbers 1-5, or blank for no rating.
 export const RATING_MIN = 1;
 export const RATING_MAX = 5;
+export const RATING_ROW = 11;
+export const RATING_FIRST_COL = 9; // I
+export const RATING_LAST_COL = 104; // CZ
+// Additional rating rows added from the app sit below the template (row 65 onwards); each one adds
+// its own wet-weather days lost to the Wet Weather row (42) of the delay allowance.
+export const EXTRA_RATING_FIRST_ROW = 65;
+export const MAX_EXTRA_RATING_ROWS = 20;
+export const extraRatingRow = (k) => EXTRA_RATING_FIRST_ROW + k;
 export function isRatingCell(sheet, a) {
-  const m = /^([A-Z]+)11$/.exec(a);
+  const m = /^([A-Z]+)(\d+)$/.exec(a);
   if (sheet !== S.CSWS || !m) return false;
+  const r = Number(m[2]);
+  if (r !== RATING_ROW && (r < EXTRA_RATING_FIRST_ROW || r >= EXTRA_RATING_FIRST_ROW + MAX_EXTRA_RATING_ROWS)) return false;
   const c = lettersToCol(m[1]);
-  return c >= 9 && c <= 104; // I..CZ
+  return c >= RATING_FIRST_COL && c <= RATING_LAST_COL;
+}
+
+// Adds `count` extra Rain Exposure Rating rows to the Critical Site Works Summary and folds each
+// into the Wet Weather formulas (row 42), using the same lookup as the main rating row.
+function addExtraRatingRows(wb, count) {
+  const cs = wb.sheet(S.CSWS);
+  for (let k = 0; k < count; k++) {
+    const r = extraRatingRow(k);
+    wb.copyRowStyle(S.CSWS, RATING_ROW, r, 1, RATING_LAST_COL);
+    cs.cells.set(addr(r, 1), { s: cs.cells.get(addr(RATING_ROW, 1))?.s, v: `Additional Rain Exposure Rating ${k + 2}` });
+    cs.cells.set(addr(r, 5), { s: cs.cells.get(addr(RATING_ROW, 5))?.s, v: 'Rain Exposure Rating >' });
+    for (let c = RATING_FIRST_COL; c <= RATING_LAST_COL; c++) {
+      const a = addr(r, c);
+      const prev = cs.cells.get(a) || {};
+      cs.cells.set(a, { s: prev.s });
+    }
+    if (r > cs.maxRow) cs.maxRow = r;
+  }
+  if (!count) return;
+  for (let c = RATING_FIRST_COL; c <= RATING_LAST_COL; c++) {
+    const a = addr(42, c);
+    const cell = cs.cells.get(a);
+    const lookup = /'Weather Calculation'!\$H\$\d+:\$S\$\d+/.exec(cell?.f || '')?.[0];
+    if (!lookup) continue;
+    const L = colToLetters(c);
+    let f = cell.f;
+    for (let k = 0; k < count; k++) {
+      const ref = `${L}${extraRatingRow(k)}`;
+      f += `+IF(${ref}>0,(HLOOKUP(MONTH(${L}$41),${lookup},(${ref}+1),TRUE)),0)`;
+    }
+    cs.cells.set(a, { ...cell, f, cv: undefined });
+  }
+  wb.invalidate();
 }
 export function ratingError(raw) {
   const t = String(raw ?? '').trim();
@@ -394,7 +437,7 @@ function removeCells(sheet, test) {
   sheet.merges = sheet.merges.filter((m) => !test(m.split(':')[0]));
 }
 
-export function buildWorkbook({ bomGrid, categories, overrides }) {
+export function buildWorkbook({ bomGrid, categories, overrides, extraRatingRows = 0 }) {
   const wb = new Workbook(template);
   applyTemplateCleanups(wb);
   // The uploaded csv is the only climate data source: start with an empty BOM csv data sheet.
@@ -404,6 +447,7 @@ export function buildWorkbook({ bomGrid, categories, overrides }) {
     addRainFactorColumns(wb, i);
     addWeatherCalcBlock(wb, i);
   }
+  addExtraRatingRows(wb, Math.min(Math.max(0, extraRatingRows | 0), MAX_EXTRA_RATING_ROWS));
   const layout = weatherLayout(cats.length);
   applyCategoryValues(wb, layout, cats);
   for (const [key, raw] of Object.entries(overrides || {})) {

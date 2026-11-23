@@ -55,3 +55,30 @@ describe('categories', () => {
     expect(wb.getValue(S.CSWS, 'C43')).toBe(0.8);
   });
 });
+
+describe('additional rain exposure rating rows', () => {
+  it('no extra rows leaves the template unchanged', () => {
+    const { wb } = buildWorkbook({ extraRatingRows: 0 });
+    expect(wb.getCell(S.CSWS, 'I65')).toBeUndefined();
+    expect(wb.getValue(S.CSWS, 'D51')).toBeCloseTo(78.01550576036867, 9);
+  });
+  it('an extra row adds its wet-weather days to the delay allowance', () => {
+    const base = buildWorkbook({});
+    const blank = buildWorkbook({ extraRatingRows: 1 });
+    expect(blank.wb.getValue(S.CSWS, 'A65')).toBe('Additional Rain Exposure Rating 2');
+    expect(blank.wb.getValue(S.CSWS, 'D42')).toBeCloseTo(base.wb.getValue(S.CSWS, 'D42'), 9);
+    // Rating row 65 the same as row 11 in one period doubles that period's wet weather days
+    const { wb } = buildWorkbook({ extraRatingRows: 1, overrides: { [`${S.CSWS}|J65`]: '3' } });
+    expect(wb.getValue(S.CSWS, 'J42')).toBeCloseTo(2 * base.wb.getValue(S.CSWS, 'J42'), 9);
+    expect(wb.getValue(S.CSWS, 'D51') - base.wb.getValue(S.CSWS, 'D51')).toBeCloseTo(base.wb.getValue(S.CSWS, 'J42'), 9);
+  });
+  it('extra rows keep working with added categories', () => {
+    const cats = [...defaultCategories(), newCategory(6)];
+    cats[5].direct = [0, 1, 1, 1];
+    const { wb } = buildWorkbook({ categories: cats, extraRatingRows: 1, overrides: { [`${S.CSWS}|J65`]: '6' } });
+    expect(wb.getValue(S.CSWS, 'J65')).toBeNull(); // ratings stay limited to 1-5
+    const ok = buildWorkbook({ categories: cats, extraRatingRows: 1, overrides: { [`${S.CSWS}|J65`]: '5' } });
+    expect(ok.wb.getCell(S.CSWS, 'J42').f).toMatch(/J65/);
+    expect(typeof ok.wb.getValue(S.CSWS, 'J42')).toBe('number');
+  });
+});

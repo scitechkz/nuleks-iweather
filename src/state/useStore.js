@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   buildWorkbook, applyCategoryValues, defaultCategories, newCategory, alignBomCsv, isAllowedInput,
+  S, extraRatingRow, MAX_EXTRA_RATING_ROWS,
 } from '../model/build.js';
 
 const KEY = 'inclement-weather-state-v2';
@@ -28,6 +29,7 @@ const initial = () => ({
   bomMeta: null,
   categories: defaultCategories(),
   overrides: {},
+  extraRatingRows: 0,
   epoch: 0,
 });
 
@@ -45,7 +47,7 @@ export function useStore() {
   const built = useMemo(
     () => buildWorkbook(state),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.bomGrid, state.categories.length, state.epoch],
+    [state.bomGrid, state.categories.length, state.extraRatingRows, state.epoch],
   );
 
   const setOverride = useCallback((sheet, a, raw) => {
@@ -87,6 +89,27 @@ export function useStore() {
     setState((s) => ({ ...s, categories: defaultCategories(), epoch: s.epoch + 1 }));
   }, [setState]);
 
+  // Extra Rain Exposure Rating rows on the Critical Site Works Summary.
+  const addRatingRow = useCallback(() => {
+    setState((s) => ((s.extraRatingRows || 0) >= MAX_EXTRA_RATING_ROWS ? s
+      : { ...s, extraRatingRows: (s.extraRatingRows || 0) + 1 }));
+  }, [setState]);
+
+  const removeRatingRow = useCallback(() => {
+    setState((s) => {
+      const n = s.extraRatingRows || 0;
+      if (!n) return s;
+      const row = String(extraRatingRow(n - 1));
+      const overrides = {};
+      for (const [k, v] of Object.entries(s.overrides)) {
+        const [sh, a] = k.split('|');
+        if (sh === S.CSWS && a.replace(/^[A-Z]+/, '') === row) continue;
+        overrides[k] = v;
+      }
+      return { ...s, overrides, extraRatingRows: n - 1 };
+    });
+  }, [setState]);
+
   const loadCsv = useCallback((rows, fileName) => {
     const { grid, warnings, statisticRow } = alignBomCsv(rows);
     setState((s) => ({ ...s, bomGrid: grid, bomMeta: { fileName, warnings, statisticRow, loadedAt: Date.now() } }));
@@ -101,6 +124,7 @@ export function useStore() {
   return {
     state, wb: built.wb, layout: built.layout,
     setOverride, resetSheet, updateCategory, addCategory, removeCategory, resetCategories,
+    addRatingRow, removeRatingRow,
     loadCsv, resetAll, hasData: Boolean(state.bomGrid),
   };
 }
